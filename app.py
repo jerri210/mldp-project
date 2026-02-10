@@ -61,7 +61,7 @@ section[data-testid="stSidebar"] .block-container { padding-top: 1rem; }
 # Header + banner (RELIABLE)
 st.markdown('<div class="banner-wrap">', unsafe_allow_html=True)
 try:
-    st.image("car_banner.jpeg", use_container_width=True)
+    st.image("car banner.jpeg", use_container_width=True)
 except Exception:
     st.info("Put **car banner.jpeg** in the same folder as this app.py to show the banner.")
 st.markdown("</div>", unsafe_allow_html=True)
