@@ -162,14 +162,17 @@ with c1:
         step=1000,
         help="Total distance the car has been driven (km).",
     )
+    
     engine_volume = st.number_input(
-        "Engine volume (L)",
-        min_value=0.1,
-        max_value=10.0,
-        value=2.0,
-        step=0.1,
-        help="Engine size in litres (for example 1.6L or 2.0L).",
-    )
+    "Engine volume (L)",
+    min_value=0.10,
+    max_value=10.00,
+    value=2.00,
+    step=0.01,
+    format="%.2f",
+    help="Engine size in litres (for example 1.60L or 2.00L).",
+)
+
 
 with c2:
     airbags = st.number_input(
