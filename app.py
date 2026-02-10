@@ -16,8 +16,22 @@ def reset_inputs():
 st.markdown(
     """
 <style>
-.block-container { padding-top: 1.2rem; }
+/* Remove extra space at the top */
+.block-container {
+    padding-top: 0.6rem !important;
+}
 
+/* Banner wrapper */
+.banner-wrap img {
+    width: 100% !important;
+    height: 260px !important;     /* banner height */
+    object-fit: cover !important; /* crops nicely */
+    border-radius: 16px !important;
+    margin-bottom: 0.5rem !important;
+    display: block;
+}
+
+/* Subtle card */
 .card{
   border: 1px solid rgba(255,255,255,0.12);
   border-radius: 16px;
@@ -26,6 +40,7 @@ st.markdown(
   margin-bottom: 14px;
 }
 
+/* Result highlight */
 .result-card{
   border: 1px solid rgba(255,255,255,0.14);
   border-radius: 18px;
@@ -43,15 +58,14 @@ section[data-testid="stSidebar"] .block-container { padding-top: 1rem; }
     unsafe_allow_html=True,
 )
 
-# Header + banner
-st.markdown(
-    """
-    <div class="banner">
-        <img src="car_banner.jpeg">
-    </div>
-    """,
-    unsafe_allow_html=True
-)
+# Header + banner (RELIABLE)
+st.markdown('<div class="banner-wrap">', unsafe_allow_html=True)
+try:
+    st.image("car_banner.jpeg", use_container_width=True)
+except Exception:
+    st.info("Put **car banner.jpeg** in the same folder as this app.py to show the banner.")
+st.markdown("</div>", unsafe_allow_html=True)
+
 st.title("🚗 Car Price Predictor")
 st.caption("Estimate used car prices instantly using your trained ML model.")
 
@@ -125,8 +139,10 @@ current_year = datetime.now().year
 
 st.markdown('<div class="card">', unsafe_allow_html=True)
 st.subheader("Enter car details")
-st.markdown('<div class="small-note">Choose dropdowns where available (same style as school sample).</div>',
-            unsafe_allow_html=True)
+st.markdown(
+    '<div class="small-note">Choose dropdowns where available (same style as school sample).</div>',
+    unsafe_allow_html=True
+)
 
 c1, c2, c3 = st.columns(3)
 
@@ -209,10 +225,9 @@ with c3:
 st.markdown("</div>", unsafe_allow_html=True)
 
 # Additional options
-with st.expander("Additional options (dropdown style)", expanded=False):
+with st.expander("Additional options", expanded=False):
     st.markdown('<div class="card">', unsafe_allow_html=True)
 
-    # Leather dropdown
     leather_choice = "Not selected"
     if "Leather interior_Yes" in expected_cols:
         leather_choice = st.selectbox(
@@ -222,7 +237,6 @@ with st.expander("Additional options (dropdown style)", expanded=False):
             help="Choose Yes/No. Not selected leaves default behaviour."
         )
 
-    # RHD dropdown
     rhd_choice = "Not selected"
     if "Wheel_Right-hand drive" in expected_cols:
         rhd_choice = st.selectbox(
@@ -232,8 +246,6 @@ with st.expander("Additional options (dropdown style)", expanded=False):
             help="Choose Yes/No. Not selected leaves default behaviour."
         )
 
-    # Levy dropdown
-    levy_choice = "Not selected"
     levy_value = None
     if "Levy" in expected_cols:
         levy_choice = st.selectbox(
@@ -262,12 +274,9 @@ with predict_col1:
 
 if predict_clicked:
     try:
-        # Build a full row of expected columns (same idea as school sample reindex)
         row = {c: 0 for c in expected_cols}
-
         car_age = max(0, current_year - prod_year)
 
-        # numeric + engineered
         if "Prod. year" in row:
             row["Prod. year"] = prod_year
         if "Car_Age" in row:
@@ -290,7 +299,6 @@ if predict_clicked:
         if "Doors_group_le_4" in row and doors is not None:
             row["Doors_group_le_4"] = 1 if doors <= 4 else 0
 
-        # dropdown-based additional options
         if "Leather interior_Yes" in row and leather_choice != "Not selected":
             row["Leather interior_Yes"] = 1 if leather_choice == "Yes" else 0
 
@@ -311,12 +319,9 @@ if predict_clicked:
         set_one_hot("Fuel type_", fuel_choice)
         set_one_hot("Gear box type_", gear_choice)
 
-        # DataFrame aligned to model features
         X = pd.DataFrame([row], columns=expected_cols)
-
         prediction = model.predict(X)[0]
 
-        # Result UI
         st.markdown('<div class="card">', unsafe_allow_html=True)
         st.subheader("Result")
 
@@ -338,7 +343,6 @@ if predict_clicked:
 
         st.markdown("</div>", unsafe_allow_html=True)
 
-        # Selected inputs + debug tabs
         selected = {
             "Production year": prod_year,
             "Mileage (km)": mileage,
