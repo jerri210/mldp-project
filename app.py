@@ -145,7 +145,7 @@ with st.sidebar:
         help="Shows the full feature vector sent to the model.",
     )
     st.divider()
-    st.button("Reset inputs", on_click=reset_inputs, use_container_width=True)
+    st.button("Reset inputs", on_click=reset_inputs, use_container_width=True, key="reset_btn")
 
 # User inputs (main)
 current_year = datetime.now().year
