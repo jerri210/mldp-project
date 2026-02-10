@@ -7,9 +7,17 @@ from datetime import datetime
 st.set_page_config(page_title="Car Price Predictor", layout="wide")
 
 # Reset inputs
+INPUT_KEYS = [
+    "prod_year", "mileage", "engine_volume",
+    "airbags", "cylinders", "doors",
+    "category", "drive", "fuel", "gear",
+    "leather_choice", "rhd_choice", "levy_choice", "levy_value"
+]
+
 def reset_inputs():
-    for k in list(st.session_state.keys()):
-        del st.session_state[k]
+    for k in INPUT_KEYS:
+        if k in st.session_state:
+            del st.session_state[k]
     st.rerun()
 
 # Styling
@@ -24,8 +32,8 @@ st.markdown(
 /* Banner wrapper */
 .banner-wrap img {
     width: 100% !important;
-    height: 260px !important;     /* banner height */
-    object-fit: cover !important; /* crops nicely */
+    height: 260px !important;     
+    object-fit: cover !important; 
     border-radius: 16px !important;
     margin-bottom: 0.5rem !important;
     display: block;
@@ -58,7 +66,7 @@ section[data-testid="stSidebar"] .block-container { padding-top: 1rem; }
     unsafe_allow_html=True,
 )
 
-# Header + banner (RELIABLE)
+# Header + banner 
 st.markdown('<div class="banner-wrap">', unsafe_allow_html=True)
 try:
     st.image("car banner.jpeg", use_container_width=True)
@@ -118,7 +126,7 @@ def dropdown_from_prefix(label, prefix, key, help_text):
     chosen_display = st.selectbox(label, display_options, index=0, key=key, help=help_text)
     return value_map[chosen_display]
 
-# Sidebar (simple + consistent)
+# Sidebar 
 with st.sidebar:
     st.header("⚙️ Options")
     show_engineered = st.toggle(
@@ -153,6 +161,7 @@ with c1:
         max_value=current_year,
         value=2018,
         help="The year the car was manufactured.",
+        key="prod_year"
     )
     mileage = st.number_input(
         "Mileage (km)",
@@ -161,18 +170,19 @@ with c1:
         value=87_000,
         step=1000,
         help="Total distance the car has been driven (km).",
+        key="mileage"
     )
-    
-    engine_volume = st.number_input(
-    "Engine volume (L)",
-    min_value=0.10,
-    max_value=10.00,
-    value=2.00,
-    step=0.01,
-    format="%.2f",
-    help="Engine size in litres (for example 1.60L or 2.00L).",
-)
 
+    engine_volume = st.number_input(
+        "Engine volume (L)",
+        min_value=0.10,
+        max_value=10.00,
+        value=2.00,
+        step=0.01,
+        format="%.2f",
+        help="Engine size in litres (for example 1.60L or 2.00L).",
+        key="engine_volume"
+    )
 
 with c2:
     airbags = st.number_input(
@@ -181,6 +191,7 @@ with c2:
         max_value=50,
         value=6,
         help="Number of airbags installed in the car.",
+        key="airbags"
     ) if "Airbags" in expected_cols else None
 
     cylinders = st.number_input(
@@ -189,6 +200,7 @@ with c2:
         max_value=16,
         value=4,
         help="Number of cylinders in the engine.",
+        key="cylinders"
     ) if "Cylinders" in expected_cols else None
 
     doors = st.number_input(
@@ -197,6 +209,7 @@ with c2:
         max_value=6,
         value=4,
         help="Number of doors on the car.",
+        key="doors"
     ) if "Doors" in expected_cols else None
 
 with c3:
@@ -237,7 +250,8 @@ with st.expander("Additional options", expanded=False):
             "Leather interior",
             ["Not selected", "Yes", "No"],
             index=0,
-            help="Choose Yes/No. Not selected leaves default behaviour."
+            help="Choose Yes/No. Not selected leaves default behaviour.",
+            key="leather_choice"
         )
 
     rhd_choice = "Not selected"
@@ -246,7 +260,8 @@ with st.expander("Additional options", expanded=False):
             "Right-hand drive",
             ["Not selected", "Yes", "No"],
             index=0,
-            help="Choose Yes/No. Not selected leaves default behaviour."
+            help="Choose Yes/No. Not selected leaves default behaviour.",
+            key="rhd_choice"
         )
 
     levy_value = None
@@ -255,7 +270,8 @@ with st.expander("Additional options", expanded=False):
             "Levy (optional)",
             ["Not selected", "Enter value", "Set to 0"],
             index=0,
-            help="If you don't know, keep Not selected or Set to 0."
+            help="If you don't know, keep Not selected or Set to 0.",
+            key="levy_choice"
         )
         if levy_choice == "Enter value":
             levy_value = st.number_input(
@@ -264,6 +280,7 @@ with st.expander("Additional options", expanded=False):
                 max_value=1_000_000,
                 value=0,
                 step=50,
+                key="levy_value"
             )
         elif levy_choice == "Set to 0":
             levy_value = 0
