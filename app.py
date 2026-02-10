@@ -12,14 +12,12 @@ def reset_inputs():
         del st.session_state[k]
     st.rerun()
 
-# Light styling
+# Styling
 st.markdown(
     """
 <style>
-/* Page width + spacing */
 .block-container { padding-top: 1.2rem; }
 
-/* Subtle card */
 .card{
   border: 1px solid rgba(255,255,255,0.12);
   border-radius: 16px;
@@ -28,7 +26,6 @@ st.markdown(
   margin-bottom: 14px;
 }
 
-/* Result highlight */
 .result-card{
   border: 1px solid rgba(255,255,255,0.14);
   border-radius: 18px;
@@ -39,10 +36,7 @@ st.markdown(
 .result-title{ font-size: 0.95rem; opacity: 0.85; font-weight: 700; }
 .result-value{ font-size: 2rem; font-weight: 900; margin-top: 2px; }
 
-/* Small helper text */
 .small-note { font-size: 0.92rem; opacity: 0.85; }
-
-/* Sidebar spacing */
 section[data-testid="stSidebar"] .block-container { padding-top: 1rem; }
 </style>
 """,
@@ -50,23 +44,17 @@ section[data-testid="stSidebar"] .block-container { padding-top: 1rem; }
 )
 
 # Header + banner
-try:
-    st.image("car banner.jpeg", use_container_width=True)
-except Exception:
-    # If image missing, don't crash the app
-    st.info("Tip: Put **car banner.jpeg** in the same folder as app.py to show the banner image.")
-
+st.image("car banner.jpeg", width=900)
 st.title("🚗 Car Price Predictor")
 st.caption("Estimate used car prices instantly using your trained ML model.")
 
-# Load model
+# Load trained model
 try:
     model = joblib.load("best_car_price_model.pkl")
 except Exception:
     st.error("Could not load best_car_price_model.pkl. Make sure it is in the same folder.")
     st.stop()
 
-# Ensure model has feature names
 if not hasattr(model, "feature_names_in_"):
     st.error("Model does not expose feature_names_in_.")
     st.stop()
@@ -88,7 +76,7 @@ LABEL_MAP = {
     "LPG": "LPG",
 }
 
-def dummy_cols(prefix):
+def dummy_cols(prefix: str):
     return [c for c in expected_cols if c.startswith(prefix)]
 
 def dropdown_from_prefix(label, prefix, key, help_text):
@@ -106,19 +94,12 @@ def dropdown_from_prefix(label, prefix, key, help_text):
         display_options.append(display)
         value_map[display] = v
 
-    chosen_display = st.selectbox(
-        label,
-        display_options,
-        index=0,
-        key=key,
-        help=help_text,
-    )
-
+    chosen_display = st.selectbox(label, display_options, index=0, key=key, help=help_text)
     return value_map[chosen_display]
 
-# Sidebar
+# Sidebar (simple + consistent)
 with st.sidebar:
-    st.header("⚙️ Settings")
+    st.header("⚙️ Options")
     show_engineered = st.toggle(
         "Show calculated fields",
         value=True,
@@ -132,12 +113,12 @@ with st.sidebar:
     st.divider()
     st.button("🔄 Reset inputs", on_click=reset_inputs, use_container_width=True)
 
-# Main inputs
+# User inputs (main)
 current_year = datetime.now().year
 
 st.markdown('<div class="card">', unsafe_allow_html=True)
 st.subheader("Enter car details")
-st.markdown('<div class="small-note">Fill in what you know — unknown fields can be left at default.</div>',
+st.markdown('<div class="small-note">Choose dropdowns where available (same style as school sample).</div>',
             unsafe_allow_html=True)
 
 c1, c2, c3 = st.columns(3)
@@ -145,71 +126,59 @@ c1, c2, c3 = st.columns(3)
 with c1:
     prod_year = st.number_input(
         "Production year",
-        1980,
-        current_year,
-        2018,
+        min_value=1980,
+        max_value=current_year,
+        value=2018,
         help="The year the car was manufactured.",
     )
     mileage = st.number_input(
         "Mileage (km)",
-        0,
-        2_000_000,
-        87_000,
+        min_value=0,
+        max_value=2_000_000,
+        value=87_000,
         step=1000,
         help="Total distance the car has been driven (km).",
     )
     engine_volume = st.number_input(
         "Engine volume (L)",
-        0.1,
-        10.0,
-        2.0,
+        min_value=0.1,
+        max_value=10.0,
+        value=2.0,
         step=0.1,
         help="Engine size in litres (for example 1.6L or 2.0L).",
     )
 
 with c2:
-    airbags = (
-        st.number_input(
-            "Airbags",
-            0,
-            50,
-            6,
-            help="Number of airbags installed in the car.",
-        )
-        if "Airbags" in expected_cols
-        else None
-    )
+    airbags = st.number_input(
+        "Airbags",
+        min_value=0,
+        max_value=50,
+        value=6,
+        help="Number of airbags installed in the car.",
+    ) if "Airbags" in expected_cols else None
 
-    cylinders = (
-        st.number_input(
-            "Cylinders",
-            2,
-            16,
-            4,
-            help="Number of cylinders in the engine.",
-        )
-        if "Cylinders" in expected_cols
-        else None
-    )
+    cylinders = st.number_input(
+        "Cylinders",
+        min_value=2,
+        max_value=16,
+        value=4,
+        help="Number of cylinders in the engine.",
+    ) if "Cylinders" in expected_cols else None
 
-    doors = (
-        st.number_input(
-            "Doors",
-            2,
-            6,
-            4,
-            help="Number of doors on the car.",
-        )
-        if "Doors" in expected_cols
-        else None
-    )
+    doors = st.number_input(
+        "Doors",
+        min_value=2,
+        max_value=6,
+        value=4,
+        help="Number of doors on the car.",
+    ) if "Doors" in expected_cols else None
 
 with c3:
     category_choice = dropdown_from_prefix(
         "Category",
         "Category_",
         "category",
-        "Body type of the car such as Sedan, Jeep or Hatchback.",
+        "Body type such as Sedan, Jeep or Hatchback.",
     )
     drive_choice = dropdown_from_prefix(
         "Drive wheels",
@@ -227,61 +196,71 @@ with c3:
         "Gear box type",
         "Gear box type_",
         "gear",
-        "Type of transmission used by the car.",
+        "Transmission type used by the car.",
     )
 
 st.markdown("</div>", unsafe_allow_html=True)
 
 # Additional options
-st.markdown('<div class="card">', unsafe_allow_html=True)
-st.subheader("Additional options")
+with st.expander("Additional options (dropdown style)", expanded=False):
+    st.markdown('<div class="card">', unsafe_allow_html=True)
 
-leather_yes = (
-    st.toggle(
-        "Leather interior",
-        value=False,
-        help="Turn on if the car has leather seats.",
-    )
-    if "Leather interior_Yes" in expected_cols
-    else False
-)
+    # Leather dropdown
+    leather_choice = "Not selected"
+    if "Leather interior_Yes" in expected_cols:
+        leather_choice = st.selectbox(
+            "Leather interior",
+            ["Not selected", "Yes", "No"],
+            index=0,
+            help="Choose Yes/No. Not selected leaves default behaviour."
+        )
 
-rhd_yes = (
-    st.toggle(
-        "Right-hand drive",
-        value=False,
-        help="Turn on if the steering wheel is on the right side.",
-    )
-    if "Wheel_Right-hand drive" in expected_cols
-    else False
-)
+    # RHD dropdown
+    rhd_choice = "Not selected"
+    if "Wheel_Right-hand drive" in expected_cols:
+        rhd_choice = st.selectbox(
+            "Right-hand drive",
+            ["Not selected", "Yes", "No"],
+            index=0,
+            help="Choose Yes/No. Not selected leaves default behaviour."
+        )
 
-levy = (
-    st.number_input(
-        "Levy",
-        0,
-        1_000_000,
-        0,
-        step=50,
-        help="Extra levy value used in the dataset. Leave 0 if unsure.",
-    )
-    if "Levy" in expected_cols
-    else None
-)
+    # Levy dropdown
+    levy_choice = "Not selected"
+    levy_value = None
+    if "Levy" in expected_cols:
+        levy_choice = st.selectbox(
+            "Levy (optional)",
+            ["Not selected", "Enter value", "Set to 0"],
+            index=0,
+            help="If you don't know, keep Not selected or Set to 0."
+        )
+        if levy_choice == "Enter value":
+            levy_value = st.number_input(
+                "Levy value",
+                min_value=0,
+                max_value=1_000_000,
+                value=0,
+                step=50,
+            )
+        elif levy_choice == "Set to 0":
+            levy_value = 0
 
-st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 
-# Predict button
-predict_col1, predict_col2 = st.columns([1, 3])
+# Predict
+predict_col1, _ = st.columns([1, 3])
 with predict_col1:
     predict_clicked = st.button("✨ Predict", type="primary", use_container_width=True)
 
 if predict_clicked:
     try:
+        # Build a full row of expected columns (same idea as school sample reindex)
         row = {c: 0 for c in expected_cols}
 
         car_age = max(0, current_year - prod_year)
 
+        # numeric + engineered
         if "Prod. year" in row:
             row["Prod. year"] = prod_year
         if "Car_Age" in row:
@@ -304,12 +283,15 @@ if predict_clicked:
         if "Doors_group_le_4" in row and doors is not None:
             row["Doors_group_le_4"] = 1 if doors <= 4 else 0
 
-        if "Leather interior_Yes" in row:
-            row["Leather interior_Yes"] = 1 if leather_yes else 0
-        if "Wheel_Right-hand drive" in row:
-            row["Wheel_Right-hand drive"] = 1 if rhd_yes else 0
-        if levy is not None and "Levy" in row:
-            row["Levy"] = levy
+        # dropdown-based additional options
+        if "Leather interior_Yes" in row and leather_choice != "Not selected":
+            row["Leather interior_Yes"] = 1 if leather_choice == "Yes" else 0
+
+        if "Wheel_Right-hand drive" in row and rhd_choice != "Not selected":
+            row["Wheel_Right-hand drive"] = 1 if rhd_choice == "Yes" else 0
+
+        if "Levy" in row and levy_value is not None:
+            row["Levy"] = levy_value
 
         def set_one_hot(prefix, choice):
             if choice:
@@ -322,10 +304,12 @@ if predict_clicked:
         set_one_hot("Fuel type_", fuel_choice)
         set_one_hot("Gear box type_", gear_choice)
 
+        # DataFrame aligned to model features
         X = pd.DataFrame([row], columns=expected_cols)
+
         prediction = model.predict(X)[0]
 
-        # Result section (highlight)
+        # Result UI
         st.markdown('<div class="card">', unsafe_allow_html=True)
         st.subheader("Result")
 
@@ -339,7 +323,6 @@ if predict_clicked:
             unsafe_allow_html=True,
         )
 
-        # quick metrics
         m1, m2, m3, m4 = st.columns(4)
         m1.metric("Car age", f"{car_age} yrs")
         m2.metric("Mileage", f"{mileage:,} km")
@@ -348,7 +331,7 @@ if predict_clicked:
 
         st.markdown("</div>", unsafe_allow_html=True)
 
-        # Selected inputs + debug (tabs)
+        # Selected inputs + debug tabs
         selected = {
             "Production year": prod_year,
             "Mileage (km)": mileage,
@@ -369,12 +352,13 @@ if predict_clicked:
             selected["Fuel type"] = LABEL_MAP.get(fuel_choice, fuel_choice)
         if gear_choice:
             selected["Gear box type"] = LABEL_MAP.get(gear_choice, gear_choice)
-        if leather_yes:
-            selected["Leather interior"] = "Yes"
-        if rhd_yes:
-            selected["Right-hand drive"] = "Yes"
-        if levy and levy != 0:
-            selected["Levy"] = levy
+
+        if leather_choice != "Not selected":
+            selected["Leather interior"] = leather_choice
+        if rhd_choice != "Not selected":
+            selected["Right-hand drive"] = rhd_choice
+        if levy_value is not None:
+            selected["Levy"] = levy_value
 
         if show_engineered:
             if "Car_Age" in row:
@@ -386,7 +370,7 @@ if predict_clicked:
 
         df_selected = pd.DataFrame(selected.items(), columns=["Field", "Value"])
 
-        tab1, tab2 = st.tabs(["📋 Selected inputs", "🧪 Technical details"])
+        tab1, tab2 = st.tabs(["Selected inputs", "Technical details"])
         with tab1:
             st.dataframe(df_selected, use_container_width=True)
 
