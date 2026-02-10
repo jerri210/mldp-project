@@ -6,7 +6,7 @@ from datetime import datetime
 
 st.set_page_config(page_title="Car Price Predictor", layout="wide")
 
-# Reset function
+# Reset inputs
 def reset_inputs():
     for k in list(st.session_state.keys()):
         del st.session_state[k]
@@ -19,19 +19,32 @@ st.caption("Predict used car prices using a trained machine learning model")
 # Load model
 try:
     model = joblib.load("best_car_price_model.pkl")
-except Exception as e:
+except Exception:
     st.error("Could not load best_car_price_model.pkl. Make sure it is in the same folder.")
     st.stop()
 
 # Ensure model has feature names
 if not hasattr(model, "feature_names_in_"):
     st.error("Model does not expose feature_names_in_.")
-    st.write("This app needs the feature names used during training.")
     st.stop()
 
 expected_cols = list(model.feature_names_in_)
 
-# Helpers
+# Friendly labels for short codes
+LABEL_MAP = {
+    "fwd": "Front-wheel drive",
+    "rwd": "Rear-wheel drive",
+    "Manual": "Manual transmission",
+    "Tiptronic": "Automatic (Tiptronic)",
+    "Variator": "Automatic (CVT)",
+    "Petrol": "Petrol",
+    "Diesel": "Diesel",
+    "Hybrid": "Hybrid",
+    "Plug-in Hybrid": "Plug-in Hybrid",
+    "Hydrogen": "Hydrogen",
+    "LPG": "LPG"
+}
+
 def dummy_cols(prefix):
     return [c for c in expected_cols if c.startswith(prefix)]
 
@@ -39,8 +52,26 @@ def dropdown_from_prefix(label, prefix, key, help_text):
     cols = dummy_cols(prefix)
     if not cols:
         return None
-    options = ["Not selected"] + [c.replace(prefix, "") for c in cols]
-    return st.selectbox(label, options, index=0, key=key, help=help_text)
+
+    raw_values = [c.replace(prefix, "") for c in cols]
+
+    display_options = ["Not selected"]
+    value_map = {"Not selected": None}
+
+    for v in raw_values:
+        display = LABEL_MAP.get(v, v)
+        display_options.append(display)
+        value_map[display] = v
+
+    chosen_display = st.selectbox(
+        label,
+        display_options,
+        index=0,
+        key=key,
+        help=help_text
+    )
+
+    return value_map[chosen_display]
 
 # Sidebar
 with st.sidebar:
@@ -48,12 +79,12 @@ with st.sidebar:
     show_engineered = st.toggle(
         "Show calculated fields",
         value=True,
-        help="Shows calculated values such as car age or mileage log."
+        help="Shows values calculated from your inputs, such as car age."
     )
     show_debug = st.toggle(
         "Show technical details",
         value=False,
-        help="Shows the full feature table sent to the model."
+        help="Shows the full feature vector sent to the model."
     )
     st.button("Reset inputs", on_click=reset_inputs)
 
@@ -68,17 +99,17 @@ with c1:
     prod_year = st.number_input(
         "Production year",
         1980, current_year, 2018,
-        help="Year the car was manufactured."
+        help="The year the car was manufactured."
     )
     mileage = st.number_input(
         "Mileage",
         0, 2_000_000, 87000, step=1000,
-        help="Total distance the car has been driven (usually in km)."
+        help="Total distance the car has been driven (km)."
     )
     engine_volume = st.number_input(
         "Engine volume",
         0.1, 10.0, 2.0, step=0.1,
-        help="Engine size in liters (for example 1.6L or 2.0L)."
+        help="Engine size in litres (for example 1.6L or 2.0L)."
     )
 
 with c2:
@@ -105,7 +136,7 @@ with c3:
         "Category",
         "Category_",
         "category",
-        "Body type of the car such as Sedan, Jeep, or Hatchback."
+        "Body type of the car such as Sedan, Jeep or Hatchback."
     )
     drive_choice = dropdown_from_prefix(
         "Drive wheels",
@@ -117,7 +148,7 @@ with c3:
         "Fuel type",
         "Fuel type_",
         "fuel",
-        "Type of fuel used by the car."
+        "Main fuel used by the car."
     )
     gear_choice = dropdown_from_prefix(
         "Gear box type",
@@ -143,13 +174,12 @@ with st.expander("Additional options"):
     levy = st.number_input(
         "Levy",
         0, 1_000_000, 0, step=50,
-        help="Additional levy value used in the dataset. Leave 0 if unsure."
+        help="Extra levy value used in the dataset. Leave 0 if unsure."
     ) if "Levy" in expected_cols else None
 
-# Predict button
+# Prediction
 if st.button("Predict", type="primary"):
     try:
-        # Build full feature row
         row = {c: 0 for c in expected_cols}
 
         car_age = max(0, current_year - prod_year)
@@ -184,7 +214,7 @@ if st.button("Predict", type="primary"):
             row["Levy"] = levy
 
         def set_one_hot(prefix, choice):
-            if choice and choice != "Not selected":
+            if choice:
                 col = prefix + choice
                 if col in row:
                     row[col] = 1
@@ -197,30 +227,29 @@ if st.button("Predict", type="primary"):
         X = pd.DataFrame([row], columns=expected_cols)
         prediction = model.predict(X)[0]
 
-        # Result
         st.subheader("Result")
         st.markdown(f"### Estimated price: **${prediction:,.2f}**")
 
-        # Selected inputs table
         selected = {
             "Production year": prod_year,
             "Mileage": mileage,
-            "Engine volume": engine_volume,
+            "Engine volume": engine_volume
         }
+
         if airbags is not None:
             selected["Airbags"] = airbags
         if cylinders is not None:
             selected["Cylinders"] = cylinders
         if doors is not None:
             selected["Doors"] = doors
-        if category_choice and category_choice != "Not selected":
+        if category_choice:
             selected["Category"] = category_choice
-        if drive_choice and drive_choice != "Not selected":
-            selected["Drive wheels"] = drive_choice
-        if fuel_choice and fuel_choice != "Not selected":
-            selected["Fuel type"] = fuel_choice
-        if gear_choice and gear_choice != "Not selected":
-            selected["Gear box type"] = gear_choice
+        if drive_choice:
+            selected["Drive wheels"] = LABEL_MAP.get(drive_choice, drive_choice)
+        if fuel_choice:
+            selected["Fuel type"] = LABEL_MAP.get(fuel_choice, fuel_choice)
+        if gear_choice:
+            selected["Gear box type"] = LABEL_MAP.get(gear_choice, gear_choice)
         if leather_yes:
             selected["Leather interior"] = "Yes"
         if rhd_yes:
@@ -230,11 +259,11 @@ if st.button("Predict", type="primary"):
 
         if show_engineered:
             if "Car_Age" in row:
-                selected["Car_Age"] = row["Car_Age"]
+                selected["Car age"] = row["Car_Age"]
             if "Mileage_log" in row:
-                selected["Mileage_log"] = round(row["Mileage_log"], 4)
+                selected["Mileage (log)"] = round(row["Mileage_log"], 4)
             if "Engine_per_Age" in row:
-                selected["Engine_per_Age"] = round(row["Engine_per_Age"], 4)
+                selected["Engine per age"] = round(row["Engine_per_Age"], 4)
 
         df_selected = pd.DataFrame(selected.items(), columns=["Field", "Value"])
         st.subheader("Selected inputs")
