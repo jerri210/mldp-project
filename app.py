@@ -6,24 +6,16 @@ from datetime import datetime
 
 st.set_page_config(page_title="Car Price Predictor", layout="wide")
 
-# Reset inputs
-INPUT_KEYS = [
-    "prod_year", "mileage", "engine_volume",
-    "airbags", "cylinders", "doors",
-    "category", "drive", "fuel", "gear",
-    "leather_choice", "rhd_choice", "levy_choice", "levy_value"
-]
+# Reset Input
+if "reset_counter" not in st.session_state:
+    st.session_state["reset_counter"] = 0
+
+def k(name: str) -> str:
+    return f"{name}_{st.session_state['reset_counter']}"
 
 def reset_inputs():
-    for k in INPUT_KEYS:
-        st.session_state.pop(k, None)
-
-    # Clear any cached widget state
-    st.session_state.pop("_submitted", None)
-
-    st.experimental_set_query_params(reset="1")
+    st.session_state["reset_counter"] += 1
     st.rerun()
-
 
 # Styling
 st.markdown(
@@ -71,7 +63,7 @@ section[data-testid="stSidebar"] .block-container { padding-top: 1rem; }
     unsafe_allow_html=True,
 )
 
-# Header + banner 
+# Header + banner
 st.markdown('<div class="banner-wrap">', unsafe_allow_html=True)
 try:
     st.image("car banner.jpeg", use_container_width=True)
@@ -131,7 +123,7 @@ def dropdown_from_prefix(label, prefix, key, help_text):
     chosen_display = st.selectbox(label, display_options, index=0, key=key, help=help_text)
     return value_map[chosen_display]
 
-# Sidebar 
+# Sidebar
 with st.sidebar:
     st.header("⚙️ Options")
     show_engineered = st.toggle(
@@ -145,9 +137,9 @@ with st.sidebar:
         help="Shows the full feature vector sent to the model.",
     )
     st.divider()
-    st.button("Reset inputs", on_click=reset_inputs, use_container_width=True, key="reset_btn")
+    st.button("Reset inputs", on_click=reset_inputs, use_container_width=True, key=k("reset_btn"))
 
-# User inputs (main)
+# User inputs
 current_year = datetime.now().year
 
 st.markdown('<div class="card">', unsafe_allow_html=True)
@@ -166,7 +158,7 @@ with c1:
         max_value=current_year,
         value=2018,
         help="The year the car was manufactured.",
-        key="prod_year"
+        key=k("prod_year")
     )
     mileage = st.number_input(
         "Mileage (km)",
@@ -175,7 +167,7 @@ with c1:
         value=87_000,
         step=1000,
         help="Total distance the car has been driven (km).",
-        key="mileage"
+        key=k("mileage")
     )
 
     engine_volume = st.number_input(
@@ -186,7 +178,7 @@ with c1:
         step=0.01,
         format="%.2f",
         help="Engine size in litres (for example 1.60L or 2.00L).",
-        key="engine_volume"
+        key=k("engine_volume")
     )
 
 with c2:
@@ -196,7 +188,7 @@ with c2:
         max_value=50,
         value=6,
         help="Number of airbags installed in the car.",
-        key="airbags"
+        key=k("airbags")
     ) if "Airbags" in expected_cols else None
 
     cylinders = st.number_input(
@@ -205,7 +197,7 @@ with c2:
         max_value=16,
         value=4,
         help="Number of cylinders in the engine.",
-        key="cylinders"
+        key=k("cylinders")
     ) if "Cylinders" in expected_cols else None
 
     doors = st.number_input(
@@ -214,32 +206,32 @@ with c2:
         max_value=6,
         value=4,
         help="Number of doors on the car.",
-        key="doors"
+        key=k("doors")
     ) if "Doors" in expected_cols else None
 
 with c3:
     category_choice = dropdown_from_prefix(
         "Category",
         "Category_",
-        "category",
+        k("category"),
         "Body type such as Sedan, Jeep or Hatchback.",
     )
     drive_choice = dropdown_from_prefix(
         "Drive wheels",
         "Drive wheels_",
-        "drive",
+        k("drive"),
         "Which wheels receive power from the engine.",
     )
     fuel_choice = dropdown_from_prefix(
         "Fuel type",
         "Fuel type_",
-        "fuel",
+        k("fuel"),
         "Main fuel used by the car.",
     )
     gear_choice = dropdown_from_prefix(
         "Gear box type",
         "Gear box type_",
-        "gear",
+        k("gear"),
         "Transmission type used by the car.",
     )
 
@@ -256,7 +248,7 @@ with st.expander("Additional options", expanded=False):
             ["Not selected", "Yes", "No"],
             index=0,
             help="Choose Yes/No. Not selected leaves default behaviour.",
-            key="leather_choice"
+            key=k("leather_choice")
         )
 
     rhd_choice = "Not selected"
@@ -266,7 +258,7 @@ with st.expander("Additional options", expanded=False):
             ["Not selected", "Yes", "No"],
             index=0,
             help="Choose Yes/No. Not selected leaves default behaviour.",
-            key="rhd_choice"
+            key=k("rhd_choice")
         )
 
     levy_value = None
@@ -276,7 +268,7 @@ with st.expander("Additional options", expanded=False):
             ["Not selected", "Enter value", "Set to 0"],
             index=0,
             help="If you don't know, keep Not selected or Set to 0.",
-            key="levy_choice"
+            key=k("levy_choice")
         )
         if levy_choice == "Enter value":
             levy_value = st.number_input(
@@ -285,7 +277,7 @@ with st.expander("Additional options", expanded=False):
                 max_value=1_000_000,
                 value=0,
                 step=50,
-                key="levy_value"
+                key=k("levy_value")
             )
         elif levy_choice == "Set to 0":
             levy_value = 0
@@ -295,7 +287,7 @@ with st.expander("Additional options", expanded=False):
 # Predict
 predict_col1, _ = st.columns([1, 3])
 with predict_col1:
-    predict_clicked = st.button("Predict", type="primary", use_container_width=True)
+    predict_clicked = st.button("Predict", type="primary", use_container_width=True, key=k("predict_btn"))
 
 if predict_clicked:
     try:
@@ -396,7 +388,7 @@ if predict_clicked:
         if levy_value is not None:
             selected["Levy"] = levy_value
 
-        if show_engineered:
+        if show_engineed := show_engineered:
             if "Car_Age" in row:
                 selected["Car age"] = row["Car_Age"]
             if "Mileage_log" in row:
