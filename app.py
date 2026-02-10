@@ -17,20 +17,22 @@ except Exception as e:
     st.stop()
 
 if not hasattr(model, "feature_names_in_"):
-    st.error("Your saved model does not contain feature_names_in_.")
-    st.write("This app needs the exact feature column names used during training.")
-    st.write("Fix option: retrain using a pandas DataFrame and save again, or paste your X_train columns list into the app.")
+    st.error("Model does not have feature_names_in_.")
+    st.write("This app needs the exact feature names used during training.")
     st.stop()
 
 expected_cols = list(model.feature_names_in_)
 
-def get_dummy_options(prefix: str):
-    cols = [c for c in expected_cols if c.startswith(prefix)]
-    options = ["Base (all zeros)"] + [c.replace(prefix, "") for c in cols]
-    return cols, options
+def get_dummy_cols(prefix):
+    return [c for c in expected_cols if c.startswith(prefix)]
 
-category_cols, category_options = get_dummy_options("Category_")
-drive_cols, drive_options = get_dummy_options("Drive wheels_")
+def make_dropdown(label, prefix):
+    cols = get_dummy_cols(prefix)
+    if not cols:
+        return None, []
+    options = ["Base (all zeros)"] + [c.replace(prefix, "") for c in cols]
+    choice = st.selectbox(label, options, index=0)
+    return choice, cols
 
 st.subheader("Enter car details")
 
@@ -40,25 +42,17 @@ prod_year = st.number_input("Production year", min_value=1980, max_value=current
 mileage = st.number_input("Mileage", min_value=0, max_value=2000000, value=87000, step=1000)
 engine_volume = st.number_input("Engine volume", min_value=0.1, max_value=10.0, value=2.0, step=0.1)
 
-airbags = None
-if "Airbags" in expected_cols:
-    airbags = st.number_input("Airbags", min_value=0, max_value=50, value=6, step=1)
+airbags = st.number_input("Airbags", min_value=0, max_value=50, value=6, step=1) if "Airbags" in expected_cols else None
+cylinders = st.number_input("Cylinders", min_value=2, max_value=16, value=4, step=1) if "Cylinders" in expected_cols else None
+doors = st.number_input("Doors", min_value=2, max_value=6, value=4, step=1) if "Doors" in expected_cols else None
 
-cylinders = None
-if "Cylinders" in expected_cols:
-    cylinders = st.number_input("Cylinders", min_value=2, max_value=16, value=4, step=1)
+category_choice, category_cols = make_dropdown("Category", "Category_")
+drive_choice, drive_cols = make_dropdown("Drive wheels", "Drive wheels_")
+fuel_choice, fuel_cols = make_dropdown("Fuel type", "Fuel type_")
+gear_choice, gear_cols = make_dropdown("Gear box type", "Gear box type_")
 
-doors = None
-if "Doors" in expected_cols:
-    doors = st.number_input("Doors", min_value=2, max_value=6, value=4, step=1)
-
-category_choice = None
-if len(category_cols) > 0:
-    category_choice = st.selectbox("Category", category_options, index=0)
-
-drive_choice = None
-if len(drive_cols) > 0:
-    drive_choice = st.selectbox("Drive wheels", drive_options, index=0)
+leather_yes = st.toggle("Leather interior = Yes", value=False) if "Leather interior_Yes" in expected_cols else False
+rhd_yes = st.toggle("Right-hand drive = Yes", value=False) if "Wheel_Right-hand drive" in expected_cols else False
 
 show_features = st.checkbox("Show features sent to model", value=True)
 
@@ -97,15 +91,34 @@ if st.button("Predict price"):
         if doors is not None and "Doors" in row:
             row["Doors"] = int(doors)
 
-        if category_choice is not None and category_choice != "Base (all zeros)":
-            col_name = "Category_" + category_choice
-            if col_name in row:
-                row[col_name] = 1
+        if "Doors_group_le_4" in row:
+            row["Doors_group_le_4"] = 1 if (doors is not None and int(doors) <= 4) else 0
 
-        if drive_choice is not None and drive_choice != "Base (all zeros)":
-            col_name = "Drive wheels_" + drive_choice
-            if col_name in row:
-                row[col_name] = 1
+        if "Leather interior_Yes" in row:
+            row["Leather interior_Yes"] = 1 if leather_yes else 0
+
+        if "Wheel_Right-hand drive" in row:
+            row["Wheel_Right-hand drive"] = 1 if rhd_yes else 0
+
+        if category_choice and category_choice != "Base (all zeros)":
+            col = "Category_" + category_choice
+            if col in row:
+                row[col] = 1
+
+        if drive_choice and drive_choice != "Base (all zeros)":
+            col = "Drive wheels_" + drive_choice
+            if col in row:
+                row[col] = 1
+
+        if fuel_choice and fuel_choice != "Base (all zeros)":
+            col = "Fuel type_" + fuel_choice
+            if col in row:
+                row[col] = 1
+
+        if gear_choice and gear_choice != "Base (all zeros)":
+            col = "Gear box type_" + gear_choice
+            if col in row:
+                row[col] = 1
 
         X = pd.DataFrame([row], columns=expected_cols)
 
@@ -118,5 +131,3 @@ if st.button("Predict price"):
     except Exception as e:
         st.error("Prediction failed")
         st.code(str(e))
-        st.write("Expected columns from model")
-        st.write(expected_cols)
