@@ -44,7 +44,7 @@ section[data-testid="stSidebar"] .block-container { padding-top: 1rem; }
 )
 
 # Header + banner
-st.image("car banner.jpeg", width=900)
+st.image("car banner.jpeg", width=500)
 st.title("🚗 Car Price Predictor")
 st.caption("Estimate used car prices instantly using your trained ML model.")
 
@@ -111,7 +111,7 @@ with st.sidebar:
         help="Shows the full feature vector sent to the model.",
     )
     st.divider()
-    st.button("🔄 Reset inputs", on_click=reset_inputs, use_container_width=True)
+    st.button("Reset inputs", on_click=reset_inputs, use_container_width=True)
 
 # User inputs (main)
 current_year = datetime.now().year
@@ -251,7 +251,7 @@ with st.expander("Additional options (dropdown style)", expanded=False):
 # Predict
 predict_col1, _ = st.columns([1, 3])
 with predict_col1:
-    predict_clicked = st.button("✨ Predict", type="primary", use_container_width=True)
+    predict_clicked = st.button("Predict", type="primary", use_container_width=True)
 
 if predict_clicked:
     try:
