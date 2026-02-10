@@ -44,7 +44,14 @@ section[data-testid="stSidebar"] .block-container { padding-top: 1rem; }
 )
 
 # Header + banner
-st.image("car banner.jpeg", width=500)
+st.markdown(
+    """
+    <div class="banner">
+        <img src="car banner.jpeg">
+    </div>
+    """,
+    unsafe_allow_html=True
+)
 st.title("🚗 Car Price Predictor")
 st.caption("Estimate used car prices instantly using your trained ML model.")
 
