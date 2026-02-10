@@ -1,79 +1,63 @@
 import streamlit as st
 import pandas as pd
 import joblib
+from datetime import datetime
 
 st.set_page_config(page_title="Car Price Predictor", layout="centered")
 
 st.title("Car Price Predictor")
 st.write("Predict used car prices using a trained machine learning model")
 
-# Load model
+# Load trained model
 try:
     model = joblib.load("best_car_price_model.pkl")
-except:
-    st.error("Model file not found")
+except Exception as e:
+    st.error("Model file not found. Ensure best_car_price_model.pkl is in the same folder.")
     st.stop()
 
-# Feature list must match training
+# These MUST match training exactly
 EXPECTED_COLUMNS = [
-    "Prod. year",
-    "Mileage",
-    "Engine volume",
-    "Airbags",
-    "Doors_group_le_4",
-    "Drive wheels_fwd",
-    "Drive wheels_rwd",
-    "Category_Age",
-    "Category_Coupe",
-    "Category_Goods wagon",
-    "Category_Hatchback",
-    "Category_Jeep",
-    "Category_Limousine",
-    "Category_Microbus",
-    "Category_Minivan",
-    "Category_Pickup",
-    "Category_Sedan",
-    "Category_Universal"
+    "Car_Age",
+    "Category_encoded",
+    "Cylinders",
+    "Doors",
+    "Engine_per_Age"
 ]
 
 st.subheader("Enter car details")
 
-prod_year = st.number_input("Production year", 1980, 2035, 2020)
-mileage = st.number_input("Mileage", 0, 999999, 87000, step=1000)
-engine_volume = st.number_input("Engine volume", 0.1, 10.0, 2.8, step=0.1)
-airbags = st.number_input("Airbags", 0, 30, 1)
+current_year = datetime.now().year
 
-doors = st.selectbox("Doors", [2, 3, 4, 5])
-drive_wheels = st.selectbox("Drive wheels", ["Front", "Rear"])
-
-category = st.selectbox(
-    "Car category",
-    [
-        "Age", "Coupe", "Goods wagon", "Hatchback", "Jeep",
-        "Limousine", "Microbus", "Minivan",
-        "Pickup", "Sedan", "Universal"
-    ]
-)
+prod_year = st.number_input("Production year", min_value=1980, max_value=current_year, value=2018)
+engine_volume = st.number_input("Engine volume", min_value=0.5, max_value=10.0, value=2.0, step=0.1)
+cylinders = st.number_input("Cylinders", min_value=2, max_value=16, value=4, step=1)
+doors = st.number_input("Doors", min_value=2, max_value=6, value=4, step=1)
+category_encoded = st.number_input("Category encoded value", min_value=0, value=0, step=1)
 
 if st.button("Predict price"):
-    data = {col: 0 for col in EXPECTED_COLUMNS}
-
-    data["Prod. year"] = prod_year
-    data["Mileage"] = mileage
-    data["Engine volume"] = engine_volume
-    data["Airbags"] = airbags
-    data["Doors_group_le_4"] = 1 if doors <= 4 else 0
-    data["Drive wheels_fwd"] = 1 if drive_wheels == "Front" else 0
-    data["Drive wheels_rwd"] = 1 if drive_wheels == "Rear" else 0
-    data[f"Category_{category}"] = 1
-
-    X = pd.DataFrame([data])
-
     try:
+        car_age = current_year - prod_year
+        if car_age <= 0:
+            car_age = 1
+
+        engine_per_age = engine_volume / car_age
+
+        data = {
+            "Car_Age": car_age,
+            "Category_encoded": category_encoded,
+            "Cylinders": cylinders,
+            "Doors": doors,
+            "Engine_per_Age": engine_per_age
+        }
+
+        X = pd.DataFrame([[data[col] for col in EXPECTED_COLUMNS]], columns=EXPECTED_COLUMNS)
+
         prediction = model.predict(X)[0]
+
         st.success(f"Estimated price: {prediction:,.2f}")
-        st.write("Features used for prediction")
+        st.write("Features sent to model")
         st.dataframe(X)
+
     except Exception as e:
         st.error("Prediction failed")
         st.code(str(e))
