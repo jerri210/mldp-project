@@ -3,39 +3,57 @@ import pandas as pd
 import numpy as np
 import joblib
 
-# ----------------------------
 # Page setup
-# ----------------------------
 st.set_page_config(page_title="Car Price Predictor", page_icon="🚗", layout="wide")
 
-# ----------------------------
-# Load model (ONLY 1 file)
-# ----------------------------
+# CSS styling
+st.markdown("""
+<style>
+.main {
+    background-color: #0e1117;
+}
+
+.card {
+    background-color: #161b22;
+    padding: 1.4rem;
+    border-radius: 16px;
+    border: 1px solid rgba(255,255,255,0.08);
+    margin-bottom: 1rem;
+}
+
+.price {
+    font-size: 2.4rem;
+    font-weight: 700;
+    margin-bottom: 0.2rem;
+}
+
+.muted {
+    opacity: 0.7;
+    font-size: 0.9rem;
+}
+</style>
+""", unsafe_allow_html=True)
+
+
+# Load model
 @st.cache_resource
 def load_model():
     return joblib.load("best_car_price_model.pkl")
 
+
 def get_expected_columns(model):
-    """
-    Many sklearn models store feature names used during fit.
-    If your model has feature_names_in_, we can auto-match perfectly.
-    """
     if hasattr(model, "feature_names_in_"):
         return list(model.feature_names_in_)
     return None
 
-def build_feature_frame_from_inputs(expected_cols, inputs: dict):
-    """
-    Build a 1-row DataFrame that matches expected_cols exactly.
-    Any missing expected columns will be filled with 0.
-    """
-    data = {c: 0 for c in expected_cols}
 
+def build_feature_frame_from_inputs(expected_cols, inputs):
+    data = {c: 0 for c in expected_cols}
     for k, v in inputs.items():
         if k in data:
             data[k] = v
-
     return pd.DataFrame([data], columns=expected_cols)
+
 
 def coerce_numeric_safe(s, default=np.nan):
     try:
@@ -43,20 +61,15 @@ def coerce_numeric_safe(s, default=np.nan):
     except:
         return default
 
-def try_predict(model, X):
-    preds = model.predict(X)
-    return np.array(preds).reshape(-1)
 
-def add_engineered_features(df: pd.DataFrame):
-    """
-    Create engineered columns if possible, based on common raw columns.
-    We do NOT guess Category_encoded mapping (user must provide encoded ints if needed).
-    """
+def try_predict(model, X):
+    return np.array(model.predict(X)).reshape(-1)
+
+
+def add_engineered_features(df):
     out = df.copy()
 
-    # Doors_group_le_4
     if "Doors_group_le_4" not in out.columns and "Doors" in out.columns:
-        # Convert Doors like "4" / "5+" to numeric where possible
         doors_num = (
             out["Doors"]
             .astype(str)
@@ -66,8 +79,6 @@ def add_engineered_features(df: pd.DataFrame):
         doors_num = pd.to_numeric(doors_num, errors="coerce")
         out["Doors_group_le_4"] = (doors_num <= 4).astype(int).fillna(0).astype(int)
 
-    # Drive wheels_fwd / Drive wheels_rwd
-    # Try raw column "Drive wheels" or "Drive wheels" variants
     drive_col = None
     for c in ["Drive wheels", "Drive_wheels", "DriveWheels"]:
         if c in out.columns:
@@ -82,93 +93,77 @@ def add_engineered_features(df: pd.DataFrame):
 
     return out
 
-# ----------------------------
-# UI Header
-# ----------------------------
-st.title("🚗 Car Price Predictor")
-st.caption("Uses ONLY your saved model file: best_car_price_model.pkl")
 
-# ----------------------------
-# Load model
-# ----------------------------
+# Header
+st.markdown("## Car Price Predictor")
+st.markdown(
+    "<p class='muted'>Predict used car prices using a trained machine learning model</p>",
+    unsafe_allow_html=True
+)
+
+
+# Load trained model
 try:
     model = load_model()
 except Exception as e:
-    st.error("Could not load best_car_price_model.pkl. Put it in the same folder as app.py.")
+    st.error("Model file could not be loaded. Ensure best_car_price_model.pkl is in the same folder.")
     st.code(str(e))
     st.stop()
 
 expected_cols = get_expected_columns(model)
 
 with st.sidebar:
-    st.header("⚙️ Settings")
+    st.header("Settings")
     is_log_model = st.toggle("Model predicts log(price)", value=False)
-    st.markdown("---")
-    st.write("Model file:")
+
+    st.write("Model file")
     st.code("best_car_price_model.pkl")
 
     if expected_cols is None:
-        st.error("Your model does NOT expose feature_names_in_.")
-        st.write("This app needs feature_names_in_ to perfectly match columns with only 1 .pkl file.")
+        st.error("feature_names_in_ not found in model")
     else:
-        st.success("Expected columns detected ✅")
-        st.caption("Your model expects these columns (used during fit):")
+        st.success("Expected feature columns detected")
         with st.expander("Show expected columns"):
             st.code(expected_cols)
 
 if expected_cols is None:
     st.stop()
 
-# ----------------------------
-# Tabs
-# ----------------------------
-tab1, tab2, tab3 = st.tabs(["🔮 Single Predict", "📁 Batch Predict (CSV)", "ℹ️ Help"])
 
-# ==========================================================
-# TAB 1: Single prediction
-# ==========================================================
+tab1, tab2, tab3 = st.tabs(["Single Predict", "Batch Predict", "Help"])
+
+
 with tab1:
     st.subheader("Single Prediction")
 
-    left, mid, right = st.columns([1, 1, 1])
+    left, mid, right = st.columns(3)
 
-    # We only show fields that are likely needed based on your error
-    # AND we only apply them if the column exists in expected_cols.
     with left:
-        prod_year = st.number_input("Prod. year", min_value=1980, max_value=2035, value=2015, step=1)
-        mileage = st.number_input("Mileage", min_value=0, max_value=999999, value=80000, step=1000)
-        engine_volume = st.number_input("Engine volume", min_value=0.1, max_value=10.0, value=1.8, step=0.1)
+        prod_year = st.number_input("Production year", 1980, 2035, 2015)
+        mileage = st.number_input("Mileage", 0, 999999, 80000, step=1000)
+        engine_volume = st.number_input("Engine volume", 0.1, 10.0, 1.8, step=0.1)
 
     with mid:
-        airbags = st.number_input("Airbags", min_value=0, max_value=30, value=6, step=1)
-        doors = st.selectbox("Doors", [2, 3, 4, 5], index=2)
-        drive_wheels = st.selectbox("Drive wheels", ["Front", "Rear", "4x4"], index=0)
+        airbags = st.number_input("Airbags", 0, 30, 6)
+        doors = st.selectbox("Doors", [2, 3, 4, 5])
+        drive_wheels = st.selectbox("Drive wheels", ["Front", "Rear", "4x4"])
 
     with right:
-        st.write("Category_encoded")
-        st.caption("Your model expects `Category_encoded`, but we don't know your encoding map.")
-        category_encoded = st.text_input("Enter encoded category (integer)", value="0")
-        category_encoded_val = int(coerce_numeric_safe(category_encoded, default=0))
+        st.write("Category encoded value")
+        category_encoded = st.text_input("Encoded category (integer)", "0")
+        category_encoded_val = int(coerce_numeric_safe(category_encoded, 0))
+        show_debug = st.checkbox("Show technical details", value=False)
 
-        st.markdown("---")
-        show_debug = st.checkbox("Show debug (features sent to model)", value=True)
-
-    if st.button("Predict Price", type="primary"):
-        # Build engineered values
-        doors_group_le_4 = 1 if doors <= 4 else 0
-        drive_fwd = 1 if drive_wheels.lower() == "front" else 0
-        drive_rwd = 1 if drive_wheels.lower() == "rear" else 0
-
-        # Inputs dict: we only set them if they exist in expected columns
+    if st.button("Predict price"):
         inputs = {
             "Prod. year": prod_year,
             "Mileage": mileage,
             "Engine volume": engine_volume,
             "Airbags": airbags,
             "Category_encoded": category_encoded_val,
-            "Doors_group_le_4": doors_group_le_4,
-            "Drive wheels_fwd": drive_fwd,
-            "Drive wheels_rwd": drive_rwd,
+            "Doors_group_le_4": 1 if doors <= 4 else 0,
+            "Drive wheels_fwd": 1 if drive_wheels.lower() == "front" else 0,
+            "Drive wheels_rwd": 1 if drive_wheels.lower() == "rear" else 0,
         }
 
         X = build_feature_frame_from_inputs(expected_cols, inputs)
@@ -178,48 +173,41 @@ with tab1:
             if is_log_model:
                 pred = float(np.exp(pred))
 
-            st.success("Prediction successful ✅")
+            st.markdown("<div class='card'>", unsafe_allow_html=True)
+            st.markdown(f"<div class='price'>${pred:,.2f}</div>", unsafe_allow_html=True)
+            st.markdown("<p class='muted'>Estimated car price</p>", unsafe_allow_html=True)
 
-            a, b, c = st.columns(3)
-            a.metric("Estimated Price", f"{pred:,.2f}")
-            b.metric("Prod. year", f"{int(prod_year)}")
-            c.metric("Mileage", f"{int(mileage):,}")
+            c1, c2, c3 = st.columns(3)
+            c1.write(f"Year: {prod_year}")
+            c2.write(f"Mileage: {mileage:,}")
+            c3.write(f"Engine: {engine_volume} L")
+
+            st.markdown("</div>", unsafe_allow_html=True)
 
             if show_debug:
-                st.markdown("### Features sent to model")
+                st.write("Features sent to model")
                 st.dataframe(X, use_container_width=True)
 
         except Exception as e:
-            st.error("Prediction failed. This usually means some expected features are still not being provided correctly.")
+            st.error("Prediction failed")
             st.code(str(e))
-            st.markdown("### Features we sent")
-            st.dataframe(X, use_container_width=True)
+            st.dataframe(X)
 
-# ==========================================================
-# TAB 2: Batch prediction
-# ==========================================================
+
 with tab2:
-    st.subheader("Batch Prediction (CSV)")
+    st.subheader("Batch Prediction")
 
-    st.write("Upload a CSV and we’ll predict for each row. Best case: your CSV already has the engineered columns.")
-
-    uploaded = st.file_uploader("Upload CSV", type=["csv"])
+    uploaded = st.file_uploader("Upload CSV file", type=["csv"])
 
     if uploaded is not None:
         df = pd.read_csv(uploaded)
-        st.markdown("### Preview")
-        st.dataframe(df.head(30), use_container_width=True)
+        st.dataframe(df.head(), use_container_width=True)
 
-        if st.button("Run Batch Prediction", type="primary"):
+        if st.button("Run batch prediction"):
             try:
                 work = add_engineered_features(df)
-
-                # Build X that matches expected_cols exactly:
-                # - If work has a column, use it
-                # - Else fill 0
                 X = pd.DataFrame({c: work[c] if c in work.columns else 0 for c in expected_cols})
 
-                # Predict
                 preds = try_predict(model, X)
                 if is_log_model:
                     preds = np.exp(preds)
@@ -227,63 +215,21 @@ with tab2:
                 out = df.copy()
                 out["predicted_price"] = preds
 
-                st.success("Batch prediction successful ✅")
+                st.markdown("<div class='card'>", unsafe_allow_html=True)
                 st.dataframe(out.head(50), use_container_width=True)
+                st.markdown("</div>", unsafe_allow_html=True)
 
-                st.markdown("### Predicted price distribution")
-                st.bar_chart(out["predicted_price"])
-
-                csv_bytes = out.to_csv(index=False).encode("utf-8")
-                st.download_button(
-                    "Download predictions CSV",
-                    data=csv_bytes,
-                    file_name="car_price_predictions.csv",
-                    mime="text/csv",
-                )
+                csv = out.to_csv(index=False).encode("utf-8")
+                st.download_button("Download CSV", csv, "car_price_predictions.csv", "text/csv")
 
             except Exception as e:
-                st.error("Batch prediction failed.")
+                st.error("Batch prediction failed")
                 st.code(str(e))
 
-                st.markdown("### Debug info")
-                st.write("These are the columns your model expects:")
-                st.code(expected_cols)
 
-                st.write("These are the columns in your uploaded CSV:")
-                st.code(list(df.columns))
-
-                st.info(
-                    "If your model expects columns like `Category_encoded`, "
-                    "your CSV must include them (as encoded integers), or you must compute them exactly the same way as training."
-                )
-
-# ==========================================================
-# TAB 3: Help
-# ==========================================================
 with tab3:
-    st.subheader("Why your earlier version failed")
+    st.subheader("Explanation")
 
-    st.write(
-        """
-Your error showed your model expects engineered columns like:
-- Airbags
-- Category_encoded
-- Doors_group_le_4
-- Drive wheels_fwd
-- Drive wheels_rwd
-
-But your app was sending raw columns like:
-- Color, Doors, Fuel type, Gear box type
-
-So sklearn rejected the input because **feature names must match training**.
-
-### What this app does instead
-It reads the **exact expected feature names** from your model and always builds an input table that matches them.
-
-### About Category_encoded
-Because you only have 1 file (the model), we don't know the exact encoding map you used during training.
-So:
-- for Single Predict: you type the integer
-- for Batch Predict: your CSV should already include Category_encoded, OR you need to recreate the same encoding rule.
-        """
-    )
+    st.write("Your model expects engineered feature columns that must exactly match training.")
+    st.write("This app reads the expected feature names from the trained model and rebuilds inputs safely.")
+    st.write("Category encoding must be provided manually because the mapping is not stored in the model.")
