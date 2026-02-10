@@ -47,7 +47,7 @@ section[data-testid="stSidebar"] .block-container { padding-top: 1rem; }
 st.markdown(
     """
     <div class="banner">
-        <img src="car banner.jpeg">
+        <img src="car_banner.jpeg">
     </div>
     """,
     unsafe_allow_html=True
