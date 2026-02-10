@@ -16,9 +16,14 @@ INPUT_KEYS = [
 
 def reset_inputs():
     for k in INPUT_KEYS:
-        if k in st.session_state:
-            del st.session_state[k]
+        st.session_state.pop(k, None)
+
+    # Clear any cached widget state
+    st.session_state.pop("_submitted", None)
+
+    st.experimental_set_query_params(reset="1")
     st.rerun()
+
 
 # Styling
 st.markdown(
